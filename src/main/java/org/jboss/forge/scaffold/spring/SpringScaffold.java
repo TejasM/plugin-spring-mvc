@@ -63,6 +63,7 @@ import org.jboss.forge.project.facets.events.InstallFacets;
 import org.jboss.forge.resources.FileResource;
 import org.jboss.forge.resources.Resource;
 import org.jboss.forge.resources.ResourceFilter;
+import org.jboss.forge.resources.java.JavaResource;
 import org.jboss.forge.scaffold.AccessStrategy;
 import org.jboss.forge.scaffold.ScaffoldProvider;
 import org.jboss.forge.scaffold.TemplateStrategy;
@@ -1119,10 +1120,18 @@ public class SpringScaffold extends BaseFacet implements ScaffoldProvider
     {
         MetadataFacet meta = project.getFacet(MetadataFacet.class);
         JavaSourceFacet java = project.getFacet(JavaSourceFacet.class);
-       
+        
+        
+
         context.put("topLevelPackage", meta.getTopLevelPackage());
 
-        JavaClass conversionService = JavaParser.parse(JavaClass.class, this.conversionServiceTemplate.render(context));
+        JavaClass conversionService;
+        try{
+			conversionService = (JavaClass) java.getJavaResource(context.get("topLevelPackage").toString().replace(".", "/") + "/conversion/CustomConversionService").getJavaSource();
+        }catch (Exception e) {
+        	conversionService = JavaParser.parse(JavaClass.class, this.conversionServiceTemplate.render(context));
+		}
+        
         String customConversionService = meta.getTopLevelPackage() + ".conversion.ConversionService";
 
         if (java.getJavaResource(customConversionService).exists())
