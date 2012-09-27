@@ -173,11 +173,14 @@ public class @{entity.getName()}Controller
 	@RequestMapping(value="/create", method=RequestMethod.POST)
 	public String create@{entity.getName()}(@{entity.getName()} @{ccEntity})
 	{
-		@foreach{name : notntomany}
+		@foreach{name : notNToN, dao : notNToNClasses}
 			if(@{ccEntity}.get@{name.substring(0,1).toUpperCase()}@{name.substring(1)}().getId() == null){
 				@{ccEntity}.set@{name.substring(0,1).toUpperCase()}@{name.substring(1)}(null);
+			}else{
+				@{ccEntity}.set@{name.substring(0,1).toUpperCase()}@{name.substring(1)}(${dao}Dao.getById(@{ccEntity}.get@{name.substring(0,1).toUpperCase()}@{name.substring(1)}().getId()));
 			}
 		@end{}
+		setBidirectionalRelationships(@{ccEntity});
 		@{ccEntity}Dao.create(@{ccEntity});
 		return "redirect:@{targetDir}@{entityPlural.toLowerCase()}";
 	}
@@ -187,5 +190,17 @@ public class @{entity.getName()}Controller
 	{
 		session.setAttribute("@{ccEntity}", search);
 		return "redirect:@{targetDir}@{entityPlural.toLowerCase()}/create";
+	}
+	
+	private void setBidirectionalRelationships(@{entity.getName()} @{ccEntity}){
+		// SetUp one to one relationships
+		@foreach{name : oneToOne, inverseName : inverseOneToOne}
+			if(@{ccEntity}.get@{name.substring(0,1).toUpperCase()}@{name.substring(1)}() != null){
+				@{ccEntity}.get@{name.substring(0,1).toUpperCase()}@{name.substring(1)}().set@{inverseName.substring(0,1).toUpperCase()}@{inverseName.substring(1)}(@{ccEntity});
+			}
+		@end{}
+		
+		// Set Up ManytoOne relationships
+		
 	}
 }

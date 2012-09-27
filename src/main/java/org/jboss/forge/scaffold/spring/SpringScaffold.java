@@ -518,7 +518,7 @@ public class SpringScaffold extends BaseFacet implements ScaffoldProvider
                         daoImplementation.toString(), overwrite));
     
                 // Create a Spring MVC controller for the passed entity, using SpringControllerTemplate.jv
-                extractNonNToN(entity, context);
+                addBidirectionalInfo(entity, context);
                 JavaClass entityController = JavaParser.parse(JavaClass.class, this.springControllerTemplate.render(context));
                 java.saveJavaSource(entityController);
                 result.add(ScaffoldUtil.createOrOverwrite(this.prompt, java.getJavaResource(entityController),
@@ -564,19 +564,62 @@ public class SpringScaffold extends BaseFacet implements ScaffoldProvider
 
         return result;
     }
-
-	private void extractNonNToN(JavaClass entity, Map<Object, Object> context) {
+	
+	private void addBidirectionalInfo(JavaClass entity, Map<Object, Object> context) {
 		@SuppressWarnings("unchecked")
 		List<String> names = (List<String>) context.get("entityNames");
-		List<String> notnToMany = new ArrayList<String>();
+		List<String> notNToN = new ArrayList<String>();
+		List<String> notNToNClasses = new ArrayList<String>();
+		List<String> oneToOne = new ArrayList<String>();
+		List<String> inverseOneToOne = new ArrayList<String>();
+		List<String> oneToMany = new ArrayList<String>();
+		List<String> inverseOneToMany = new ArrayList<String>();
+		List<String> manyToOne = new ArrayList<String>();
+		List<String> inverseManyToOne = new ArrayList<String>();
+		List<String> manyToMany = new ArrayList<String>();
+		List<String> inverseManyToMany = new ArrayList<String>();
 		for (String string : names) {
-			for (Annotation<JavaClass> ntomany : entity.getField(string).getAnnotations()) {
-				if(!(ntomany.getName().contains("ManyToOne") || ntomany.getName().contains("ManyToMany") || ntomany.getName().contains("OneToMany")))
-					notnToMany.add(string);
-				
+			for (Annotation<JavaClass> relation : entity.getField(string).getAnnotations()) {
+				String mappedBy = relation.getStringValue("mappedBy");
+				if(relation.getName().contains("OneToOne")){
+					notNToN.add(string);
+					notNToNClasses.add(entity.getField(string).getName());
+					if(mappedBy != null && !("".equals(mappedBy))){
+						oneToOne.add(string);
+						inverseOneToOne.add(mappedBy);
+					}
+					break;
+				} else if(relation.getName().contains("ManyToOne")){
+					if(mappedBy != null && !("".equals(mappedBy))){
+						manyToOne.add(string);
+						inverseManyToOne.add(mappedBy);
+					}
+					break;					
+				} else if(relation.getName().contains("ManyToMany")){
+					if(mappedBy != null && !("".equals(mappedBy))){
+						manyToMany.add(string);
+						inverseManyToMany.add(mappedBy);
+					}
+					break;
+				} else if(relation.getName().contains("OneToMany")){
+					if(mappedBy != null && !("".equals(mappedBy))){
+						oneToMany.add(string);
+						inverseOneToMany.add(mappedBy);
+					}
+					break;
+				}				
 			}
 		}
-		context.put("notntomany", notnToMany);
+		context.put("notNToN", notNToN);
+		context.put("notNToNClasses", notNToNClasses);
+		context.put("oneToOne", oneToOne);
+		context.put("oneToMany", oneToMany);
+		context.put("manyToOne", manyToOne);
+		context.put("manyToMany", manyToMany);
+		context.put("inverseOneToOne", inverseOneToOne);
+		context.put("inverseOneToMany", inverseOneToMany);
+		context.put("inverseManyToOne", inverseManyToOne);
+		context.put("inverseManyToMany", inverseManyToMany);
 	}
 
     @Override
@@ -1039,18 +1082,18 @@ public class SpringScaffold extends BaseFacet implements ScaffoldProvider
                     clazz = field.getStringInitializer();
                     int firstIndexOf = clazz.indexOf("<");
                     int lastIndexOf = clazz.indexOf(">");
-
-                    clazz = clazz.substring(firstIndexOf + 1, lastIndexOf);
                     String domainPackage = findDomainPackage(clazz, entity);
 
-                    nToMany.add(clazz);
                     createConverter(clazz, domainPackage);
+                    clazz = clazz.substring(firstIndexOf + 1, lastIndexOf);
+                    nToMany.add(clazz);
+                    
                 }
                 else
                 {
                     clazz = field.getType();
                 }
-
+                
                 entityClasses.add(clazz);
                 String ccEntity = StringUtils.camelCase(clazz);
                 ccEntityClasses.add(ccEntity);
@@ -1060,7 +1103,7 @@ public class SpringScaffold extends BaseFacet implements ScaffoldProvider
         context.put("entityNames", entityNames);
         context.put("entityClasses", entityClasses);
         context.put("ccEntityClasses", ccEntityClasses);
-
+        
         if (!nToMany.isEmpty())
         {
             context.put("nToMany", nToMany);
