@@ -17,6 +17,7 @@ import org.metawidget.statically.html.widgetbuilder.HtmlTableCell;
 import org.metawidget.statically.html.widgetbuilder.HtmlTableRow;
 import org.metawidget.statically.jsp.StaticJspUtils;
 import org.metawidget.statically.jsp.widgetbuilder.CoreForEach;
+import org.metawidget.statically.jsp.widgetbuilder.CoreOut;
 import org.metawidget.statically.jsp.widgetbuilder.JspWidgetBuilder;
 import org.metawidget.util.ClassUtils;
 import org.metawidget.util.WidgetBuilderUtils;
@@ -110,6 +111,7 @@ public class JspEntityWidgetBuilder extends JspWidgetBuilder {
         // Create the column.
 
         super.addColumnComponent(row, forEach, tableAttributes, elementName, columnAttributes, metawidget);
+        
         List<StaticWidget> columns = row.getChildren();
         HtmlTableCell column = (HtmlTableCell) columns.get(columns.size()-1);
 
@@ -126,7 +128,14 @@ public class JspEntityWidgetBuilder extends JspWidgetBuilder {
         {
             String controllerName = StringUtils.decapitalize(ClassUtils.getSimpleName(componentType));
             controllerName = Noun.pluralOf(controllerName).toLowerCase();
-
+            
+            
+            CoreOut curl2 = new CoreOut();
+            String valueExpression = StaticJspUtils.wrapExpression(forEach.getAttribute("var") + "." + columnAttributes.get(NAME));
+            curl2.setValue(valueExpression);
+            column.getChildren().remove(0);
+            column.getChildren().add(curl2);
+            
             // Create a link...
 
             HtmlAnchor link = new HtmlAnchor();
