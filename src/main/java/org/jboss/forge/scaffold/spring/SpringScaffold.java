@@ -499,11 +499,13 @@ public class SpringScaffold extends BaseFacet implements ScaffoldProvider
                 this.qbeMetawidget.setPath(entity.getQualifiedName());
                 StringWriter writer = new StringWriter();
                 this.qbeMetawidget.write(writer, backingBeanTemplateQbeMetawidgetIndent);
-
+                
                 context.put("qbeMetawidget", writer.toString().trim());
-                context.put("qbeMetawidgetImports",
-                        CollectionUtils.toString(this.qbeMetawidget.getImports(), ";\r\n", true, false));
-
+                // Why is CollectionUtils' toString used seems unnecessary
+                /*List<String> qbeImports = new ArrayList<String>();
+                qbeImports.add(CollectionUtils.toString(this.qbeMetawidget.getImports(), ";\r\n", true, false));*/
+                context.put("qbeMetawidgetImports",this.qbeMetawidget.getImports());
+                
                 JavaInterface daoInterface = JavaParser.parse(JavaInterface.class, this.daoInterfaceTemplate.render(context));
                 JavaClass daoImplementation = JavaParser.parse(JavaClass.class, this.daoImplementationTemplate.render(context));
     
@@ -512,7 +514,7 @@ public class SpringScaffold extends BaseFacet implements ScaffoldProvider
                 java.saveJavaSource(daoInterface);
                 result.add(ScaffoldUtil.createOrOverwrite(this.prompt, java.getJavaResource(daoInterface),
                         daoInterface.toString(), overwrite));
-    
+                
                 java.saveJavaSource(daoImplementation);
                 result.add(ScaffoldUtil.createOrOverwrite(this.prompt, java.getJavaResource(daoImplementation),
                         daoImplementation.toString(), overwrite));
@@ -574,35 +576,52 @@ public class SpringScaffold extends BaseFacet implements ScaffoldProvider
 		List<String> inverseOneToOne = new ArrayList<String>();
 		List<String> oneToMany = new ArrayList<String>();
 		List<String> inverseOneToMany = new ArrayList<String>();
+		List<String> inverseOneToManyClass = new ArrayList<String>();
 		List<String> manyToOne = new ArrayList<String>();
 		List<String> inverseManyToOne = new ArrayList<String>();
-		List<String> manyToMany = new ArrayList<String>();
+		List<String> manyToMany = new ArrayList<String>();		
 		List<String> inverseManyToMany = new ArrayList<String>();
+		List<String> inverseManyToManyClass = new ArrayList<String>();
+		List<String> importsToAdd = new ArrayList<String>();
 		for (String string : names) {
 			for (Annotation<JavaClass> relation : entity.getField(string).getAnnotations()) {
 				String mappedBy = relation.getStringValue("mappedBy");
 				if(relation.getName().contains("OneToOne")){
 					notNToN.add(string);
-					notNToNClasses.add(entity.getField(string).getName());
+					notNToNClasses.add(entity.getField(string).getType().toLowerCase());
 					if(mappedBy != null && !("".equals(mappedBy))){
 						oneToOne.add(string);
 						inverseOneToOne.add(mappedBy);
 					}
 					break;
 				} else if(relation.getName().contains("ManyToOne")){
+					notNToN.add(string);
+					notNToNClasses.add(entity.getField(string).getType().toLowerCase());
 					if(mappedBy != null && !("".equals(mappedBy))){
+						String clazz = entity.getField(string).getStringInitializer();
+						clazz = clazz.substring(clazz.indexOf("<") + 1, clazz.indexOf(">"));
+						importsToAdd.add(entity.getImport(clazz).getQualifiedName());										
 						manyToOne.add(string);
 						inverseManyToOne.add(mappedBy);
 					}
 					break;					
 				} else if(relation.getName().contains("ManyToMany")){
 					if(mappedBy != null && !("".equals(mappedBy))){
+						
+						String clazz = entity.getField(string).getStringInitializer();
+						clazz = clazz.substring(clazz.indexOf("<") + 1, clazz.indexOf(">"));
+						inverseManyToManyClass.add(clazz.toLowerCase());
+						importsToAdd.add(entity.getImport(clazz).getQualifiedName());
 						manyToMany.add(string);
 						inverseManyToMany.add(mappedBy);
 					}
 					break;
 				} else if(relation.getName().contains("OneToMany")){
 					if(mappedBy != null && !("".equals(mappedBy))){
+						String clazz = entity.getField(string).getStringInitializer();
+						clazz = clazz.substring(clazz.indexOf("<") + 1, clazz.indexOf(">"));
+						inverseOneToManyClass.add(clazz.toLowerCase());
+						importsToAdd.add(entity.getImport(clazz).getQualifiedName());
 						oneToMany.add(string);
 						inverseOneToMany.add(mappedBy);
 					}
@@ -618,8 +637,11 @@ public class SpringScaffold extends BaseFacet implements ScaffoldProvider
 		context.put("manyToMany", manyToMany);
 		context.put("inverseOneToOne", inverseOneToOne);
 		context.put("inverseOneToMany", inverseOneToMany);
+		context.put("inverseOneToManyClass", inverseOneToManyClass);
 		context.put("inverseManyToOne", inverseManyToOne);
 		context.put("inverseManyToMany", inverseManyToMany);
+		context.put("inverseManyToManyClass", inverseManyToManyClass);
+		context.put("importsToAdd", importsToAdd);
 	}
 
     @Override
@@ -1082,10 +1104,11 @@ public class SpringScaffold extends BaseFacet implements ScaffoldProvider
                     clazz = field.getStringInitializer();
                     int firstIndexOf = clazz.indexOf("<");
                     int lastIndexOf = clazz.indexOf(">");
+                    clazz = clazz.substring(firstIndexOf+1, lastIndexOf);
                     String domainPackage = findDomainPackage(clazz, entity);
 
                     createConverter(clazz, domainPackage);
-                    clazz = clazz.substring(firstIndexOf + 1, lastIndexOf);
+                 
                     nToMany.add(clazz);
                     
                 }

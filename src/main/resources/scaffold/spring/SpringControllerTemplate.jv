@@ -9,6 +9,10 @@ import @{topLevelPackage}.repo.@{entity.getName()}Dao;
 import @{topLevelPackage}.repo.@{clazz}Dao;
 @end{}
 
+@foreach{clazz : importsToAdd}
+import @{clazz};
+@end{}
+
 import javax.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -201,6 +205,24 @@ public class @{entity.getName()}Controller
 		@end{}
 		
 		// Set Up ManytoOne relationships
+		@foreach{name : manyToOne, inverseName : inverseManyToOne}
+			if(@{ccEntity}.get@{name.substring(0,1).toUpperCase()}@{name.substring(1)}() != null){
+				@{ccEntity}.get@{name.substring(0,1).toUpperCase()}@{name.substring(1)}().get@{inverseName.substring(0,1).toUpperCase()}@{inverseName.substring(1)}().add(@{ccEntity});
+			}
+		@end{}
 		
+		//Set Up OnetoMany relationships
+		@foreach{name : oneToMany, inverseName : inverseOneToMany, inverseClass: inverseOneToManyClass}
+			for(@{inverseClass.substring(0,1).toUpperCase()}@{inverseClass.substring(1)} @{inverseClass} : @{ccEntity}.get@{name.substring(0,1).toUpperCase()}@{name.substring(1)}()){
+				@{inverseClass}.set@{inverseName.substring(0,1).toUpperCase()}@{inverseName.substring(1)}(@{ccEntity});
+			}
+		@end{}
+		
+		//Set Up ManyToMany relationships
+		@foreach{name : manyToMany, inverseName : inverseManyToMany, inverseClass: inverseManyToManyClass}
+			for(@{inverseClass.substring(0,1).toUpperCase()}@{inverseClass.substring(1)} @{inverseClass} : @{ccEntity}.get@{name.substring(0,1).toUpperCase()}@{name.substring(1)}()){
+				@{inverseClass}.get@{inverseName.substring(0,1).toUpperCase()}@{inverseName.substring(1)}().add(@{ccEntity}).
+			}
+		@end{}
 	}
 }
