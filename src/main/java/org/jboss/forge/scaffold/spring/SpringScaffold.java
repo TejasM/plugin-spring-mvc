@@ -595,8 +595,6 @@ public class SpringScaffold extends BaseFacet implements ScaffoldProvider
 					}
 					break;
 				} else if(relation.getName().contains("ManyToOne")){
-					notNToN.add(string);
-					notNToNClasses.add(entity.getField(string).getType().toLowerCase());
 					if(mappedBy != null && !("".equals(mappedBy))){
 						String clazz = entity.getField(string).getStringInitializer();
 						clazz = clazz.substring(clazz.indexOf("<") + 1, clazz.indexOf(">"));
@@ -1099,7 +1097,7 @@ public class SpringScaffold extends BaseFacet implements ScaffoldProvider
                 entityNames.add(name);
                 String clazz = new String();
 
-                if (field.hasAnnotation(OneToMany.class) || field.hasAnnotation(ManyToMany.class))
+                if (field.hasAnnotation(OneToMany.class) || field.hasAnnotation(ManyToMany.class) )
                 {
                     clazz = field.getStringInitializer();
                     int firstIndexOf = clazz.indexOf("<");
@@ -1111,6 +1109,12 @@ public class SpringScaffold extends BaseFacet implements ScaffoldProvider
                  
                     nToMany.add(clazz);
                     
+                }else if(field.hasAnnotation(ManyToOne.class)){
+                	clazz = field.getType();
+                	String domainPackage = findDomainPackage(clazz, entity);
+
+                    createConverter(clazz, domainPackage);
+                    nToMany.add(clazz);
                 }
                 else
                 {
