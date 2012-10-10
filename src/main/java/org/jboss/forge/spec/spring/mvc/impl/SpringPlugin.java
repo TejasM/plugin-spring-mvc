@@ -139,6 +139,16 @@ public class SpringPlugin implements Plugin
            {
                ShellMessages.error(out, "Could not change application context location, no file found at src/main/resources/" + location);
            }
+           
+           if(this.prompt.promptBoolean("Would you like to add spring security?", false)){
+	           MetadataFacet meta = project.getFacet(MetadataFacet.class);
+	
+	           String securityContext = "/WEB-INF/"
+						+ meta.getProjectName().replace(' ', '-').toLowerCase()
+						+ "-security-context.xml";
+	           String targetDir = this.prompt.prompt("Target Dir? (Default is: " + securityContext + ")", "");
+	           updateSecurity(targetDir);
+           }
        }
    }
 
@@ -343,7 +353,7 @@ public class SpringPlugin implements Plugin
        
        if (!web.getWebResource(securityContext).exists())
        {
-           beans = new Node("beans");
+           beans = new Node("beans:beans");
            beans.attribute("xsi:schemaLocation", "http://www.springframework.org/schema/beans\nhttp://www.springframework.org/schema/security\n"
         		   + "http//www.springframework.org/schema/security/spring-security-3.0.xsd");
        }
@@ -353,8 +363,6 @@ public class SpringPlugin implements Plugin
        }
        
        beans = addXMLSchemaSecurity(beans, false);
-       //TODO: 
-
        if (!hasChildNamed(beans, "http"))
        {
            Node http = new Node("http", beans);
@@ -363,6 +371,7 @@ public class SpringPlugin implements Plugin
                        .attribute("access", "ROLE_ADMIN");
            http.createChild("intercept-url").attribute("pattern", "/**/edit*")
            .attribute("access", "ROLE_ADMIN");
+           http.createChild("remember-me");
        }
        if(!hasChildNamed(beans, "user-service")){
     	   Node userService = new Node("user-service", beans);
