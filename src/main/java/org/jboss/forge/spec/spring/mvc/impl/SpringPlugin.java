@@ -320,7 +320,7 @@ public class SpringPlugin implements Plugin
        SpringFacet spring = project.getFacet(SpringFacet.class);
        MetadataFacet meta = project.getFacet(MetadataFacet.class);
        if(spring.installSecurity()){
-    	   System.out.println("Sucessfully install spring security");
+    	   System.out.println("Sucessfully installed spring security");
        }
        if (targetDir == null)
        {
@@ -335,8 +335,10 @@ public class SpringPlugin implements Plugin
 					+ meta.getProjectName().replace(' ', '-').toLowerCase()
 					+ "-security-context.xml";
 		} else {
-			securityContext = "/WEB-INF/"
-					+ targetDir.replace('/', '-').toLowerCase()
+			if(!targetDir.endsWith("/")){
+				targetDir += "/";
+			}
+			securityContext = "/WEB-INF/" + targetDir + meta.getProjectName().replace(' ', '-').toLowerCase()
 					+ "-security-context.xml";
 		}
 
