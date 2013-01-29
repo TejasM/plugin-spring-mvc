@@ -139,16 +139,6 @@ public class SpringPlugin implements Plugin
            {
                ShellMessages.error(out, "Could not change application context location, no file found at src/main/resources/" + location);
            }
-           
-           if(this.prompt.promptBoolean("Would you like to add spring security?", false)){
-	           MetadataFacet meta = project.getFacet(MetadataFacet.class);
-	
-	           String securityContext = "/WEB-INF/"
-						+ meta.getProjectName().replace(' ', '-').toLowerCase()
-						+ "-security-context.xml";
-	           String targetDir = this.prompt.prompt("Target Dir? (Default is: " + securityContext + ")", "");
-	           updateSecurity(targetDir);
-           }
        }
    }
 
@@ -317,8 +307,9 @@ public class SpringPlugin implements Plugin
    @Command("security")
    public void updateSecurity(@Option(required=false, name="targetDir", description="Target Directory") String targetDir)
    {
+	   MetadataFacet meta = project.getFacet(MetadataFacet.class);
+		
        SpringFacet spring = project.getFacet(SpringFacet.class);
-       MetadataFacet meta = project.getFacet(MetadataFacet.class);
        if(spring.installSecurity()){
     	   System.out.println("Sucessfully installed spring security");
        }
@@ -544,6 +535,7 @@ public class SpringPlugin implements Plugin
 	   if(targetDir.startsWith("/")){
 		   targetDir = targetDir.substring(1);
 	   }
+	   
 	   if(!webXML.getContextParam("contextConfigLocation").contains(targetDir)){
 		   webXML.contextParam("contextConfigLocation", webXML.getContextParam("contextConfigLocation") + ", " + targetDir);
 	   }

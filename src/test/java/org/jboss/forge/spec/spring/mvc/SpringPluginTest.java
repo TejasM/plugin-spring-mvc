@@ -46,19 +46,21 @@ public class SpringPluginTest extends AbstractShellTest
     {
         getShell().setOutputStream(System.out);
         Project project = initializeJavaProject();
-        queueInputLines("HIBERNATE", "JBOSS_AS7", "", "");
+        queueInputLines("HIBERNATE", "JBOSS_AS7", "", "", "");
         getShell().execute("persistence setup");
         queueInputLines("Y", "");
         getShell().execute("spring setup");
         Assert.assertTrue(project.hasFacet(SpringFacet.class));
     }
+    
+    
 
     @Test
     public void testSetContextFileLocation() throws Exception
     {
         getShell().setOutputStream(System.out);
         Project project = initializeJavaProject();
-        queueInputLines("HIBERNATE", "JBOSS_AS7", "", "");
+        queueInputLines("HIBERNATE", "JBOSS_AS7", "", "", "");
         getShell().execute("persistence setup");
         queueInputLines("Y", "");
         getShell().execute("spring setup");
@@ -76,7 +78,7 @@ public class SpringPluginTest extends AbstractShellTest
     public void testMVCFromTemplate() throws Exception
     {
         Project project = initializeJavaProject();
-        queueInputLines("HIBERNATE", "JBOSS_AS7", "", "");
+        queueInputLines("HIBERNATE", "JBOSS_AS7", "", "", "");
         getShell().execute("persistence setup");
         queueInputLines("", "");
         getShell().execute("spring setup");
@@ -92,7 +94,7 @@ public class SpringPluginTest extends AbstractShellTest
     public void testMVC() throws Exception
     {
         Project project = initializeJavaProject();
-        queueInputLines("HIBERNATE", "JBOSS_AS7", "", "");
+        queueInputLines("HIBERNATE", "JBOSS_AS7", "", "", "");
         getShell().execute("persistence setup");
         queueInputLines("", "");
         getShell().execute("spring setup");
@@ -158,9 +160,9 @@ public class SpringPluginTest extends AbstractShellTest
     public void testGenerateApplicationContext() throws Exception
     {
         Project project = initializeJavaProject();
-        queueInputLines("HIBERNATE", "JBOSS_AS7", "", "");
+        queueInputLines("HIBERNATE", "JBOSS_AS7", "", "", "");
         getShell().execute("persistence setup");
-        queueInputLines("", "");
+        queueInputLines("", "", "");
         getShell().execute("spring setup");
 
         getShell().execute("spring persistence");
@@ -190,5 +192,74 @@ public class SpringPluginTest extends AbstractShellTest
         Assert.assertEquals("entityManagerFactory", entityManagerFactory.getAttribute("id"));
         Assert.assertEquals("javax.persistence.EntityManagerFactory", entityManagerFactory.getAttribute("expected-type"));
         Assert.assertEquals("java:jboss/forge-default/persistence", entityManagerFactory.getAttribute("jndi-name"));
+    }
+    
+    @Test
+    public void testSecurity() throws Exception
+    {
+        getShell().setOutputStream(System.out);
+        Project project = initializeJavaProject();
+        queueInputLines("HIBERNATE", "JBOSS_AS7", "", "", "");
+        getShell().execute("persistence setup");
+        queueInputLines("", "");
+        getShell().execute("spring setup");
+
+        getShell().execute("spring mvc --mvcContext /WEB-INF/servlet-context.xml --targetDir /admin --mvcPackage test.mvc.package");
+
+        MetadataFacet meta = project.getFacet(MetadataFacet.class);
+        ServletFacet servlet = project.getFacet(ServletFacet.class);
+        SpringFacet spring = project.getFacet(SpringFacet.class);
+        WebResourceFacet web = project.getFacet(WebResourceFacet.class);
+
+        WebAppDescriptor webXML = servlet.getConfig();
+
+        Assert.assertNotNull(webXML);
+        Assert.assertTrue(webXML.getContextParam("contextConfigLocation").contains("classpath:/" + spring.getContextFileLocation()));
+        Assert.assertTrue(webXML.getListeners().contains("org.springframework.web.context.ContextLoaderListener"));
+
+        Node webapp = XMLParser.parse(servlet.getConfigFile().getResourceInputStream());
+
+        Assert.assertTrue(webapp.getSingle("display-name").getText().equals(meta.getProjectName()));
+        Assert.assertNotNull(webapp.getSingle("persistence-context-ref"));
+
+        Node dispatcherServlet = webapp.getSingle("servlet");
+        Assert.assertTrue(dispatcherServlet.getSingle("servlet-name").getText().equals("admin"));
+        Assert.assertTrue(dispatcherServlet.getSingle("servlet-class").getText().equals("org.springframework.web.servlet.DispatcherServlet"));
+
+        Node param = dispatcherServlet.getSingle("init-param").getSingle("param-value");
+        Assert.assertTrue(param.getText().equals("/WEB-INF/servlet-context.xml"));
+
+        Node servletMapping = webapp.getSingle("servlet-mapping");
+        Assert.assertTrue(servletMapping.getSingle("url-pattern").getText().equals("/admin/*"));
+        Assert.assertTrue(servletMapping.getSingle("servlet-name").getText().equals("admin"));
+
+        Node beans = XMLParser.parse(web.getWebResource("WEB-INF/servlet-context.xml").getResourceInputStream());
+
+        Assert.assertNotNull(beans.getAttribute("xmlns"));
+        Assert.assertNotNull(beans.getAttribute("xmlns:context"));
+        Assert.assertNotNull(beans.getAttribute("xmlns:mvc"));
+        Assert.assertNotNull(beans.getAttribute("xsi:schemaLocation"));
+
+        Node mvcScan = beans.getSingle("context:component-scan");
+        Assert.assertNotNull(mvcScan);
+        Assert.assertEquals("test.mvc.package", mvcScan.getAttribute("base-package"));
+        Assert.assertNotNull(beans.getSingle("mvc:annotation-driven"));
+        Assert.assertNotNull(beans.getSingle("mvc:resources"));
+        // Should this element be added for non-root servlets?
+        //Assert.assertNotNull(beans.getSingle("mvc:default-servlet-handler"));
+
+        boolean viewResolver = false;
+
+        for (Node bean : beans.get("bean"))
+        {
+            if (bean.getAttribute("id") != null && bean.getAttribute("id").equals("viewResolver"))
+            {
+                viewResolver = true;
+            }
+        }
+
+        Assert.assertTrue(viewResolver);
+        
+        getShell().execute("spring security");
     }
 }
