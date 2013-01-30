@@ -194,10 +194,9 @@ public class SpringPluginTest extends AbstractShellTest
         Assert.assertEquals("java:jboss/forge-default/persistence", entityManagerFactory.getAttribute("jndi-name"));
     }
     
-    @Test
-    public void testSecurity() throws Exception
-    {
-        getShell().setOutputStream(System.out);
+    
+    private Project prepSecurityTest() throws Exception {
+    	getShell().setOutputStream(System.out);
         Project project = initializeJavaProject();
         queueInputLines("HIBERNATE", "JBOSS_AS7", "", "", "");
         getShell().execute("persistence setup");
@@ -259,7 +258,108 @@ public class SpringPluginTest extends AbstractShellTest
         }
 
         Assert.assertTrue(viewResolver);
+        return project;
+    }
+    
+	private void checkAuthenticationManager(Node security) {
+		Node authenticationManager = security.getSingle("authentication-manager");
+        Assert.assertNotNull(authenticationManager);
         
+        Node authenticationProvider = authenticationManager.getSingle("authentication-provider");
+        Assert.assertNotNull(authenticationProvider);
+        Assert.assertEquals("userService", authenticationProvider.getAttribute("user-service-ref"));
+	}       
+    
+	private void checkHttpNode(Node security) {
+		Assert.assertNotNull(security.getAttribute("xmlns"));
+        Assert.assertNotNull(security.getAttribute("xmlns:beans"));
+        Assert.assertNotNull(security.getAttribute("xsi:schemaLocation"));
+
+        Node http = security.getSingle("http");
+        Assert.assertNotNull(http);
+        Assert.assertEquals("true", http.getAttribute("auto-config"));
+        
+        Node interceptURL = http.getChildren().get(0);
+        Assert.assertEquals("/**/create*", interceptURL.getAttribute("pattern"));
+        Assert.assertEquals("ROLE_ADMIN", interceptURL.getAttribute("access"));
+        interceptURL = http.getChildren().get(1);
+        Assert.assertEquals("/**/edit*", interceptURL.getAttribute("pattern"));
+        Assert.assertEquals("ROLE_ADMIN", interceptURL.getAttribute("access"));
+        
+        Node rememberMe = http.getSingle("remember-me");
+        Assert.assertNotNull(rememberMe);
+	}
+    
+    @Test
+    public void testSecurityInMemory() throws Exception
+    {
+        Project project = prepSecurityTest();
+        queueInputLines("1", "", "");
         getShell().execute("spring security");
+
+        SpringFacet spring = project.getFacet(SpringFacet.class);
+
+        Node security = XMLParser.parse(spring.getSecurityContextFile("").getResourceInputStream());
+        
+        checkHttpNode(security);
+        
+        Node userService = security.getSingle("user-service");
+        Assert.assertNotNull(userService);
+        Assert.assertEquals("userService", userService.getAttribute("id"));
+        
+        Node user = userService.getSingle("user");
+        Assert.assertNotNull(user);
+        Assert.assertEquals("admin", user.getAttribute("name"));
+        Assert.assertEquals("adminPass", user.getAttribute("password"));
+        Assert.assertEquals("ROLE_ADMIN", user.getAttribute("authorities"));
+
+        checkAuthenticationManager(security);               
+    }
+    
+    @Test
+    public void testSecurityJDBC() throws Exception
+    {
+    	Project project = prepSecurityTest();
+        queueInputLines("2", "testDataSource");
+        getShell().execute("spring security");
+        
+        SpringFacet spring = project.getFacet(SpringFacet.class);
+        
+        Node security = XMLParser.parse(spring.getSecurityContextFile("").getResourceInputStream());
+        
+        checkHttpNode(security);
+        
+        Node jdbcUserService = security.getSingle("jdbc-user-service");
+        Assert.assertNotNull(jdbcUserService);
+        Assert.assertEquals("userService", jdbcUserService.getAttribute("id"));
+        Assert.assertEquals("testDataSource", jdbcUserService.getAttribute("data-source-ref"));
+
+        checkAuthenticationManager(security);
+    }
+    
+    @Test
+    public void testSecurityLDAP() throws Exception
+    {
+    	Project project = prepSecurityTest();
+        queueInputLines("3", "ldap://forgeplugintest.com:389/dc=forge,dc=com");
+        getShell().execute("spring security");
+        
+        SpringFacet spring = project.getFacet(SpringFacet.class);
+        
+        Node security = XMLParser.parse(spring.getSecurityContextFile("").getResourceInputStream());
+        
+        checkHttpNode(security);
+        
+        Node userService = security.getSingle("ldap-user-service");
+        Assert.assertNotNull(userService);
+        Assert.assertEquals("userService", userService.getAttribute("id"));
+        Assert.assertEquals("(uid={0})", userService.getAttribute("user-search-filter"));
+        Assert.assertEquals("member={0}", userService.getAttribute("group-search-filter"));
+        
+        Node server = security.getSingle("ldap-server");
+        Assert.assertNotNull(server);
+        Assert.assertEquals("ldap://forgeplugintest.com:389/dc=forge,dc=com", server.getAttribute("url"));
+
+        checkAuthenticationManager(security);
     }
 }
