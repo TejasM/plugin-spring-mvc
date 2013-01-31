@@ -370,7 +370,9 @@ public class SpringPlugin implements Plugin
        }
        List<String> possibleAuthenciationTechniques = new ArrayList<String>();
        possibleAuthenciationTechniques.add("Embedded");
-       possibleAuthenciationTechniques.add("JDBC");
+       if (project.hasFacet(PersistenceFacet.class)){
+    	   possibleAuthenciationTechniques.add("JDBC");
+       }
        possibleAuthenciationTechniques.add("LDAP");
        int authenciationMethod = this.prompt.promptChoice("Type of User Authenciation", possibleAuthenciationTechniques);
        switch (authenciationMethod) {
