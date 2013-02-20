@@ -30,13 +30,13 @@ public class SpringSecurityFacetImpl extends BaseFacet implements SpringSecurity
 
     private final DependencyInstaller installer;
 
-    private static final String SPRING_VERSION = "3.1.1.RELEASE";
+    private static final String SPRING_SECURITY_VERSION = "3.1.3.RELEASE";
 
-    private static final Dependency SPRING_SECURITY = DependencyBuilder.create("org.springframework.security:spring-security-core:${spring.version}");
+    private static final Dependency SPRING_SECURITY = DependencyBuilder.create("org.springframework.security:spring-security-core:${spring.security.version}");
 
-    private static final Dependency SPRING_SECURITY_CONFIG = DependencyBuilder.create("org.springframework.security:spring-security-config:${spring.version}");
+    private static final Dependency SPRING_SECURITY_CONFIG = DependencyBuilder.create("org.springframework.security:spring-security-config:${spring.security.version}");
 
-    private static final Dependency SPRING_SECURITY_WEB = DependencyBuilder.create("org.springframework.security:spring-security-web:${spring.version}");
+    private static final Dependency SPRING_SECURITY_WEB = DependencyBuilder.create("org.springframework.security:spring-security-web:${spring.security.version}");
 
     private String TARGET_DIR;
 
@@ -131,7 +131,7 @@ public class SpringSecurityFacetImpl extends BaseFacet implements SpringSecurity
 
                 if (requirement.getGroupId().equals("org.springframework.security"))
                 {
-                    deps.setProperty("spring.version", SPRING_VERSION);
+                    deps.setProperty("spring.security.version", SPRING_SECURITY_VERSION);
                 }
 
                 if (!requirement.equals(JAVAEE6))

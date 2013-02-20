@@ -316,6 +316,11 @@ public class SpringSecurityPlugin implements Plugin {
                 webXML = webXML.contextParam("contextConfigLocation", contextConfigLocation);
             }
         }
+        
+        if (!webXML.getListeners().contains("org.springframework.web.context.ContextLoaderListener"))
+        {
+            webXML = webXML.listener("org.springframework.web.context.ContextLoaderListener");
+        }
 
         //Add security filter if asked for one
         webXML = addSecurity(targetDir, webXML);

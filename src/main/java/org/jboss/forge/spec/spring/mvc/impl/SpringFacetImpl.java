@@ -51,10 +51,8 @@ public class SpringFacetImpl extends BaseFacet implements SpringFacet
 
     private ServletMappingHelper servletMappingHelper = new ServletMappingHelper();
 
-    private static final String SPRING_VERSION = "3.1.1.RELEASE";
+    private static final String SPRING_VERSION = "3.2.0.RELEASE";
     private static final String SPRING_DISPATCHER_SERVLET = "org.springframework.web.servlet.DispatcherServlet";
-
-    private static final Dependency SPRING_ASM = DependencyBuilder.create("org.springframework:spring-asm:${spring.version}");
 
     private static final Dependency SPRING_BEANS = DependencyBuilder.create("org.springframework:spring-beans:${spring.version}");
 
@@ -144,7 +142,7 @@ public class SpringFacetImpl extends BaseFacet implements SpringFacet
 
 	protected List<Dependency> getRequiredDependencies()
     {
-        return Arrays.asList(SPRING_ASM, SPRING_BEANS, SPRING_CONTEXT, SPRING_CONTEXT_SUPPORT,
+        return Arrays.asList(SPRING_BEANS, SPRING_CONTEXT, SPRING_CONTEXT_SUPPORT,
                 SPRING_CORE, SPRING_EXPRESSION, SPRING_ORM, SPRING_TX, SPRING_WEB, SPRING_WEB_MVC, JAVA_VALIDATION);        
     }
 
