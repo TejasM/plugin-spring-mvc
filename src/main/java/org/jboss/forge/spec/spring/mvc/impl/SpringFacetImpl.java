@@ -73,12 +73,6 @@ public class SpringFacetImpl extends BaseFacet implements SpringFacet
     private static final Dependency SPRING_WEB_MVC = DependencyBuilder.create("org.springframework:spring-webmvc:${spring.version}");
     
     private static final Dependency JAVA_VALIDATION = DependencyBuilder.create("javax.validation:validation-api");
-
-    private static final Dependency SPRING_SECURITY = DependencyBuilder.create("org.springframework.security:spring-security-core:${spring.version}");
-
-    private static final Dependency SPRING_SECURITY_CONFIG = DependencyBuilder.create("org.springframework.security:spring-security-config:${spring.version}");
-
-    private static final Dependency SPRING_SECURITY_WEB = DependencyBuilder.create("org.springframework.security:spring-security-web:${spring.version}");
     
     @Inject
     public SpringFacetImpl(final DependencyInstaller installer)

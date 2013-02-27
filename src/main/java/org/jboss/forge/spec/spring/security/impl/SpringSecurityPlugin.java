@@ -21,20 +21,22 @@
  */
 package org.jboss.forge.spec.spring.security.impl;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.FileNotFoundException;
+import java.util.*;
 
 import javax.enterprise.event.Event;
 import javax.inject.Inject;
 
+import org.jboss.forge.parser.JavaParser;
+import org.jboss.forge.parser.java.JavaClass;
 import org.jboss.forge.parser.xml.Node;
 import org.jboss.forge.parser.xml.XMLParser;
+import org.jboss.forge.project.Facet;
 import org.jboss.forge.project.Project;
-import org.jboss.forge.project.facets.MetadataFacet;
-import org.jboss.forge.project.facets.PackagingFacet;
-import org.jboss.forge.project.facets.WebResourceFacet;
+import org.jboss.forge.project.facets.*;
 import org.jboss.forge.project.facets.events.InstallFacets;
-import org.jboss.forge.project.packaging.PackagingType;
+import org.jboss.forge.project.services.FacetFactory;
+import org.jboss.forge.scaffold.ScaffoldProvider;
 import org.jboss.forge.shell.ShellMessages;
 import org.jboss.forge.shell.ShellPrompt;
 import org.jboss.forge.shell.plugins.Alias;
@@ -49,9 +51,11 @@ import org.jboss.forge.spec.javaee.ServletFacet;
 import org.jboss.forge.spec.spring.security.SpringSecurityFacet;
 import org.jboss.seam.render.TemplateCompiler;
 import org.jboss.seam.render.spi.TemplateResolver;
+import org.jboss.seam.render.template.CompiledTemplateResource;
 import org.jboss.seam.render.template.resolver.ClassLoaderTemplateResolver;
 import org.jboss.shrinkwrap.descriptor.api.spec.servlet.web.FilterDef;
 import org.jboss.shrinkwrap.descriptor.api.spec.servlet.web.WebAppDescriptor;
+import org.metawidget.util.CollectionUtils;
 
 /**
  * @author <a href="mailto:ryan.k.bradley@gmail.com">Ryan Bradley</a>
@@ -73,9 +77,16 @@ public class SpringSecurityPlugin implements Plugin {
     @Inject
     private ShellPrompt prompt;
 
+    @Inject
+    private FacetFactory factory;
+
     private static final String XMLNS_PREFIX = "xmlns:";
 
     private TemplateResolver<ClassLoader> resolver;
+
+    private static final String CUSTOM_HANDLER_TEMPLATE = "scaffold/spring/CustomAuthenciationHandler.jv";
+
+    protected CompiledTemplateResource customHandlerTemplate;
 
     @Inject
     public SpringSecurityPlugin(final TemplateCompiler compiler) {
@@ -88,13 +99,27 @@ public class SpringSecurityPlugin implements Plugin {
     }
 
     @SetupCommand
-    public void setup(PipeOut out, @Option(required = false, name = "targetDir", description = "Target Directory") String targetDir) {
+    public void setup(@Option(required = false, name = "targetDir", description = "Target Directory") String targetDir) throws FileNotFoundException {
         if (!project.hasFacet(SpringSecurityFacet.class)) {
             request.fire(new InstallFacets(SpringSecurityFacet.class));
         }
 
         SpringSecurityFacet spring = project.getFacet(SpringSecurityFacet.class);
         MetadataFacet meta = project.getFacet(MetadataFacet.class);
+
+        List<ScaffoldProvider> providers = getScaffoldTypes();
+        ScaffoldProvider selectedProvider = null;
+        if (providers != null && providers.size() > 1){
+            selectedProvider = providers.get(this.prompt.promptChoice("Which type of Scaffolding are you using?", providers));
+        } else if (providers != null && providers.size() == 1){
+            selectedProvider = providers.get(0);
+        } else{
+            boolean continuing = this.prompt.promptBoolean("There is no scaffolding plugin installed are sure you want to continue installing spring security?", false);
+            if (!continuing){
+                return;
+            }
+        }
+
 
         if (spring.install()) {
             System.out.println("Sucessfully installed spring security");
@@ -107,7 +132,7 @@ public class SpringSecurityPlugin implements Plugin {
         targetDir = processTargetDir(targetDir);
         spring.setTargetDir(targetDir);
 
-        String securityContext = new String();
+        String securityContext;
         if (targetDir.isEmpty()) {
             securityContext = "/WEB-INF/"
                     + meta.getProjectName().replace(' ', '-').toLowerCase()
@@ -119,7 +144,7 @@ public class SpringSecurityPlugin implements Plugin {
             securityContext = "/WEB-INF/" + targetDir + meta.getProjectName().replace(' ', '-').toLowerCase()
                     + "-security-context.xml";
         }
-        generateSecurity(securityContext);
+        generateSecurity(securityContext, selectedProvider);
         updateWebXML(securityContext);
     }
 
@@ -173,7 +198,7 @@ public class SpringSecurityPlugin implements Plugin {
     }
 
 
-    private void generateSecurity(String securityContext) {
+    private void generateSecurity(String securityContext, ScaffoldProvider selectedProvider) throws FileNotFoundException {
 
         WebResourceFacet web = project.getFacet(WebResourceFacet.class);
 
@@ -196,6 +221,9 @@ public class SpringSecurityPlugin implements Plugin {
             http.createChild("intercept-url").attribute("pattern", "/**/edit*")
                     .attribute("access", "ROLE_ADMIN");
             http.createChild("remember-me");
+            if (selectedProvider != null && selectedProvider.getClass().getCanonicalName().contains("JSF")){
+                setupSecurityForJSF(http, beans);
+            }
         }
         List<String> possibleAuthenciationTechniques = new ArrayList<String>();
         possibleAuthenciationTechniques.add("Embedded");
@@ -281,12 +309,11 @@ public class SpringSecurityPlugin implements Plugin {
         return false;
     }
 
-    protected void updateWebXML(String targetDir) {
+    protected void updateWebXML(String targetDir) throws FileNotFoundException {
         ServletFacet servlet = project.getFacet(ServletFacet.class);
 
         WebAppDescriptor webXML = servlet.getConfig();
         MetadataFacet meta = project.getFacet(MetadataFacet.class);
-
         if (webXML == null) {
             Node webapp = new Node("webapp");
             WebResourceFacet web = project.getFacet(WebResourceFacet.class);
@@ -316,11 +343,11 @@ public class SpringSecurityPlugin implements Plugin {
                 webXML = webXML.contextParam("contextConfigLocation", contextConfigLocation);
             }
         }
-        
         if (!webXML.getListeners().contains("org.springframework.web.context.ContextLoaderListener"))
         {
             webXML = webXML.listener("org.springframework.web.context.ContextLoaderListener");
         }
+
 
         //Add security filter if asked for one
         webXML = addSecurity(targetDir, webXML);
@@ -330,6 +357,24 @@ public class SpringSecurityPlugin implements Plugin {
         }
 
         servlet.saveConfig(webXML);
+    }
+
+    private void setupSecurityForJSF(Node http, Node beans) throws FileNotFoundException {
+        MetadataFacet meta = project.getFacet(MetadataFacet.class);
+        JavaSourceFacet java = project.getFacet(JavaSourceFacet.class);
+        Map<Object, Object> context = CollectionUtils.newHashMap();
+        context.put("topLevelPackage", meta.getTopLevelPackage());
+
+        if (this.customHandlerTemplate == null)
+        {
+            this.customHandlerTemplate = compiler.compile(CUSTOM_HANDLER_TEMPLATE);
+        }
+        JavaClass customHandler = JavaParser.parse(JavaClass.class, this.customHandlerTemplate.render(context));
+        java.saveJavaSource(customHandler);
+
+        http.createChild("form-login").attribute("authentication-success-handler-ref", "authenticationSuccessHandler");
+
+        beans.createChild("beans:bean").attribute("id", "authenticationSuccessHandler").attribute("class",meta.getTopLevelPackage() + ".handler");
     }
 
     private WebAppDescriptor addSecurity(String targetDir,
@@ -354,5 +399,23 @@ public class SpringSecurityPlugin implements Plugin {
         targetDir = (targetDir.endsWith("/")) ? targetDir.substring(0, targetDir.length() - 1) : targetDir;
 
         return targetDir;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<ScaffoldProvider> getScaffoldTypes()
+    {
+        ScaffoldProvider scaffoldImpl = null;
+
+        Collection<Facet> facets = project.getFacets();
+        List<ScaffoldProvider> detectedScaffolds = new ArrayList<ScaffoldProvider>();
+        for (Facet facet : facets)
+        {
+            if (facet instanceof ScaffoldProvider)
+            {
+                detectedScaffolds.add((ScaffoldProvider) facet);
+            }
+        }
+
+        return  detectedScaffolds;
     }
 }

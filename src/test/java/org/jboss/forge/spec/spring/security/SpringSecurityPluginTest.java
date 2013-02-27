@@ -43,8 +43,6 @@ public class SpringSecurityPluginTest extends AbstractShellTest
         Project project = initializeJavaProject();
         queueInputLines("HIBERNATE", "JBOSS_AS7", "", "", "");
         getShell().execute("persistence setup");
-        queueInputLines("", "");
-        
         return project;
     }
 
@@ -101,7 +99,7 @@ public class SpringSecurityPluginTest extends AbstractShellTest
     public void testSecurityInMemory() throws Exception
     {
         Project project = prepSecurityTest();
-        queueInputLines("1", "", "");
+        queueInputLines("", "Y", "1", "", "");
         getShell().execute("security setup");
 
         queueInputLines("Tejas", "password", "ROLE_DEVELOPER");
@@ -130,7 +128,7 @@ public class SpringSecurityPluginTest extends AbstractShellTest
     public void testSecurityJDBC() throws Exception
     {
     	Project project = prepSecurityTest();
-        queueInputLines("2", "testDataSource");
+        queueInputLines("", "Y", "2", "testDataSource");
         getShell().execute("security setup");
         
         SpringSecurityFacet spring = project.getFacet(SpringSecurityFacet.class);
@@ -151,7 +149,7 @@ public class SpringSecurityPluginTest extends AbstractShellTest
     public void testSecurityLDAP() throws Exception
     {
     	Project project = prepSecurityTest();
-        queueInputLines("3", "ldap://forgeplugintest.com:389/dc=forge,dc=com");
+        queueInputLines("", "Y", "3", "ldap://forgeplugintest.com:389/dc=forge,dc=com");
         getShell().execute("security setup");
         
         SpringSecurityFacet spring = project.getFacet(SpringSecurityFacet.class);
