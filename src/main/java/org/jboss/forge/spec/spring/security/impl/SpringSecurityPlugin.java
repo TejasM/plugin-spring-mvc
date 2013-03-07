@@ -84,10 +84,6 @@ public class SpringSecurityPlugin implements Plugin {
 
     private TemplateResolver<ClassLoader> resolver;
 
-    private static final String CUSTOM_HANDLER_TEMPLATE = "scaffold/spring/CustomAuthenciationHandler.jv";
-
-    protected CompiledTemplateResource customHandlerTemplate;
-
     @Inject
     public SpringSecurityPlugin(final TemplateCompiler compiler) {
         this.compiler = compiler;
@@ -221,7 +217,7 @@ public class SpringSecurityPlugin implements Plugin {
             http.createChild("intercept-url").attribute("pattern", "/**/edit*")
                     .attribute("access", "ROLE_ADMIN");
             http.createChild("remember-me");
-            if (selectedProvider != null && selectedProvider.getClass().getCanonicalName().contains("JSF")){
+            if (selectedProvider != null && selectedProvider.getClass().getCanonicalName().contains("Faces")){
                 setupSecurityForJSF(http, beans);
             }
         }
@@ -360,21 +356,7 @@ public class SpringSecurityPlugin implements Plugin {
     }
 
     private void setupSecurityForJSF(Node http, Node beans) throws FileNotFoundException {
-        MetadataFacet meta = project.getFacet(MetadataFacet.class);
-        JavaSourceFacet java = project.getFacet(JavaSourceFacet.class);
-        Map<Object, Object> context = CollectionUtils.newHashMap();
-        context.put("topLevelPackage", meta.getTopLevelPackage());
-
-        if (this.customHandlerTemplate == null)
-        {
-            this.customHandlerTemplate = compiler.compile(CUSTOM_HANDLER_TEMPLATE);
-        }
-        JavaClass customHandler = JavaParser.parse(JavaClass.class, this.customHandlerTemplate.render(context));
-        java.saveJavaSource(customHandler);
-
-        http.createChild("form-login").attribute("authentication-success-handler-ref", "authenticationSuccessHandler");
-
-        beans.createChild("beans:bean").attribute("id", "authenticationSuccessHandler").attribute("class",meta.getTopLevelPackage() + ".handler");
+        http.createChild("form-login").attribute("always-use-default-target", "true");
     }
 
     private WebAppDescriptor addSecurity(String targetDir,

@@ -24,9 +24,12 @@ package org.jboss.forge.spec.spring.security;
 
 import junit.framework.Assert;
 
+import org.jboss.forge.parser.java.JavaClass;
 import org.jboss.forge.parser.xml.Node;
 import org.jboss.forge.parser.xml.XMLParser;
 import org.jboss.forge.project.Project;
+import org.jboss.forge.project.facets.JavaSourceFacet;
+import org.jboss.forge.resources.java.JavaResource;
 import org.jboss.forge.test.AbstractShellTest;
 import org.junit.Test;
 
@@ -170,4 +173,50 @@ public class SpringSecurityPluginTest extends AbstractShellTest
 
         checkAuthenticationManager(security);
     }
+
+    @Test
+    public void testSecurityJSF() throws Exception
+    {
+        Project project = prepSecurityTest();
+        queueInputLines("", "", "", "");
+        getShell().execute("scaffold setup");
+        queueInputLines("1", "", "");
+        getShell().execute("security setup");
+
+        SpringSecurityFacet spring = project.getFacet(SpringSecurityFacet.class);
+        Node security = XMLParser.parse(spring.getSecurityContextFile("").getResourceInputStream());
+
+        checkHttpNodeJSF(security);
+
+
+        Node userService = security.getSingle("user-service");
+        Assert.assertNotNull(userService);
+        Assert.assertEquals("userService", userService.getAttribute("id"));
+
+        checkAuthenticationManager(security);
+    }
+
+    private void checkHttpNodeJSF(Node security) {
+        Assert.assertNotNull(security.getAttribute("xmlns"));
+        Assert.assertNotNull(security.getAttribute("xmlns:beans"));
+        Assert.assertNotNull(security.getAttribute("xsi:schemaLocation"));
+
+        Node http = security.getSingle("http");
+        Assert.assertNotNull(http);
+        Assert.assertEquals("true", http.getAttribute("auto-config"));
+
+        Node formLogin = http.getSingle("form-login");
+        Assert.assertNotNull(formLogin);
+        Assert.assertEquals("true", formLogin.getAttribute("always-use-default-target"));
+        Node interceptURL = http.getChildren().get(0);
+        Assert.assertEquals("/**/create*", interceptURL.getAttribute("pattern"));
+        Assert.assertEquals("ROLE_ADMIN", interceptURL.getAttribute("access"));
+        interceptURL = http.getChildren().get(1);
+        Assert.assertEquals("/**/edit*", interceptURL.getAttribute("pattern"));
+        Assert.assertEquals("ROLE_ADMIN", interceptURL.getAttribute("access"));
+
+        Node rememberMe = http.getSingle("remember-me");
+        Assert.assertNotNull(rememberMe);
+    }
+
 }
